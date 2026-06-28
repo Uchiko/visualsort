@@ -6,7 +6,9 @@ Claude Codeに丸投げして作ってもらいました。thanks claude code.
 
 ## デモ
 
-`index.html` をブラウザで開くだけで動きます。GitHub Pages を有効にすれば、そのまま公開ページになります（下記参照）。
+次のリンクをクリックすると、GitHub Pages上でそのまま動作します。
+
+<a href="https://uchiko.github.io/visualsort/>Visual Sort demo</a>
 
 ## 機能
 
