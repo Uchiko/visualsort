@@ -8,7 +8,7 @@ Claude Codeに丸投げして作ってもらいました。thanks claude code.
 
 次のリンクをクリックすると、GitHub Pages上でそのまま動作します。
 
-[・Visual Sort demoタイトル](https://uchiko.github.io/visualsort/)　
+[Visual Sort demo](https://uchiko.github.io/visualsort/)　
 
 ## 機能
 
