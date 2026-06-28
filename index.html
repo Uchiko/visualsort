@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VISUAL SORT — ソートアルゴリズムビジュアライザー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a0e12;
+    --ink-2:#0c1218;
+    --panel:#111a22;
+    --panel-2:#0e161d;
+    --line:#1d2b37;
+    --grid:rgba(70,200,184,.07);
+    --text:#cdd9e2;
+    --dim:#65798a;
+    --trace:#46c8b8;   /* 未整列 */
+    --compare:#ffc94d; /* 比較 */
+    --write:#ff6b5e;   /* 書き込み */
+    --sorted:#7fe0a0;  /* 確定 */
+    --pivot:#b98cff;   /* ピボット */
+    --shadow:0 1px 0 rgba(255,255,255,.04), 0 14px 40px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(120% 90% at 50% -10%, #11202a 0%, var(--ink) 60%);
+    color:var(--text);
+    font-family:'Space Grotesk','Noto Sans JP',system-ui,sans-serif;
+    min-height:100%;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:22px 16px 40px;
+  }
+  .scope{
+    width:100%; max-width:920px;
+    background:linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%);
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+
+  /* ---- header ---- */
+  .bar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:14px; padding:14px 18px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(70,200,184,.05),transparent);
+  }
+  .brand{
+    display:flex; align-items:baseline; gap:10px;
+    font-weight:700; letter-spacing:.14em; font-size:18px;
+  }
+  .brand .dot{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--trace); box-shadow:0 0 10px var(--trace);
+    align-self:center;
+    animation:pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+  .brand .sub{
+    font-family:'Noto Sans JP',sans-serif;
+    font-weight:400; letter-spacing:.04em;
+    font-size:11.5px; color:var(--dim);
+  }
+  .readout{display:flex; gap:8px}
+  .stat{
+    font-family:'JetBrains Mono',monospace;
+    background:var(--ink-2); border:1px solid var(--line);
+    border-radius:8px; padding:6px 10px; min-width:84px;
+    display:flex; flex-direction:column; gap:1px;
+  }
+  .stat .k{font-size:9.5px; letter-spacing:.12em; color:var(--dim)}
+  .stat .v{font-size:16px; font-weight:700; color:var(--text); line-height:1}
+
+  /* ---- screen ---- */
+  .screen{
+    position:relative;
+    margin:16px; border-radius:10px; overflow:hidden;
+    background:#060a0d;
+    border:1px solid #11202a;
+    box-shadow:inset 0 0 0 1px rgba(70,200,184,.08), inset 0 0 60px rgba(0,0,0,.7);
+    aspect-ratio:16/7;
+  }
+  #cv{display:block; width:100%; height:100%}
+  .scan{
+    position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(180deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px);
+    mix-blend-mode:multiply; opacity:.55;
+  }
+  .vignette{
+    position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(120% 130% at 50% 50%,transparent 55%,rgba(0,0,0,.55) 100%);
+  }
+
+  /* ---- legend ---- */
+  .legend{
+    display:flex; flex-wrap:wrap; gap:14px;
+    padding:0 18px 6px;
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim);
+  }
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .legend i{width:11px;height:11px;border-radius:2px; display:inline-block}
+
+  /* ---- algorithm chips ---- */
+  .algos{
+    display:flex; flex-wrap:wrap; gap:8px;
+    padding:12px 18px 4px;
+  }
+  .chip{
+    font-family:'Space Grotesk','Noto Sans JP',sans-serif;
+    font-size:13px; font-weight:500;
+    color:var(--dim);
+    background:var(--ink-2);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:7px 13px; cursor:pointer;
+    transition:.15s color,.15s border-color,.15s background,.15s box-shadow;
+  }
+  .chip:hover{color:var(--text); border-color:#2b3f4f}
+  .chip[aria-pressed="true"]{
+    color:var(--ink); background:var(--trace);
+    border-color:var(--trace);
+    box-shadow:0 0 16px rgba(70,200,184,.4);
+    font-weight:700;
+  }
+
+  /* ---- controls ---- */
+  .controls{
+    display:flex; flex-wrap:wrap; align-items:flex-end; gap:18px;
+    padding:14px 18px;
+  }
+  .ctrl{display:flex; flex-direction:column; gap:7px; flex:1 1 180px; min-width:150px}
+  .ctrl label{
+    font-family:'JetBrains Mono',monospace; font-size:11px;
+    letter-spacing:.08em; color:var(--dim);
+    display:flex; justify-content:space-between;
+  }
+  .ctrl label b{color:var(--text); font-weight:700}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:4px; border-radius:4px;
+    background:linear-gradient(90deg,var(--trace) var(--fill,40%),#1c2a36 var(--fill,40%));
+    outline:none; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:#e7f4f1; border:2px solid var(--trace);
+    box-shadow:0 0 10px rgba(70,200,184,.6); cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px;height:16px;border-radius:50%;
+    background:#e7f4f1;border:2px solid var(--trace);
+    box-shadow:0 0 10px rgba(70,200,184,.6); cursor:pointer;
+  }
+  .buttons{display:flex; gap:8px; flex:1 1 auto; flex-wrap:wrap}
+  button{
+    font-family:'Space Grotesk','Noto Sans JP',sans-serif;
+    font-size:13.5px; font-weight:600;
+    border-radius:9px; padding:10px 16px; cursor:pointer;
+    border:1px solid var(--line); background:var(--ink-2); color:var(--text);
+    transition:.15s transform,.15s border-color,.15s background;
+  }
+  button:hover{border-color:#2b3f4f}
+  button:active{transform:translateY(1px)}
+  button.primary{
+    background:var(--trace); color:var(--ink); border-color:var(--trace);
+    box-shadow:0 0 18px rgba(70,200,184,.35);
+  }
+  button.primary:hover{background:#5ad6c6}
+  button.ghost[aria-pressed="true"]{
+    color:var(--pivot); border-color:var(--pivot);
+    box-shadow:0 0 14px rgba(185,140,255,.3);
+  }
+  button:focus-visible, input:focus-visible, .chip:focus-visible{
+    outline:2px solid var(--compare); outline-offset:2px;
+  }
+
+  /* ---- info ---- */
+  .info{
+    margin:4px 18px 0; padding:14px 16px;
+    background:var(--ink-2); border:1px solid var(--line); border-radius:10px;
+    font-family:'Noto Sans JP',sans-serif; font-size:13px; line-height:1.65;
+    color:var(--text);
+  }
+  .info .name{font-weight:700; letter-spacing:.02em; margin-right:10px}
+  .info .cx{
+    display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:9px;
+    font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--dim);
+  }
+  .info .cx b{color:var(--trace); font-weight:700}
+  .foot{
+    padding:14px 18px 18px; color:var(--dim);
+    font-family:'Noto Sans JP',sans-serif; font-size:11.5px;
+  }
+
+  @media (max-width:560px){
+    .bar{flex-direction:column; align-items:flex-start; gap:10px}
+    .readout{align-self:stretch}
+    .stat{flex:1}
+    .screen{aspect-ratio:4/3}
+    .buttons{order:-1; width:100%}
+    .buttons button{flex:1}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .brand .dot{animation:none}
+  }
+</style>
+</head>
+<body>
+<div class="scope">
+  <header class="bar">
+    <div class="brand"><span class="dot"></span>SORT·SCOPE<span class="sub">整列アルゴリズム観測装置</span></div>
+    <div class="readout">
+      <div class="stat"><span class="k">比較</span><span class="v" id="cmpCount">0</span></div>
+      <div class="stat"><span class="k">書き込み</span><span class="v" id="wrtCount">0</span></div>
+    </div>
+  </header>
+
+  <div class="screen">
+    <canvas id="cv"></canvas>
+    <div class="scan"></div>
+    <div class="vignette"></div>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:var(--trace)"></i>未整列</span>
+    <span><i style="background:var(--compare)"></i>比較</span>
+    <span><i style="background:var(--write)"></i>書き込み</span>
+    <span><i style="background:var(--pivot)"></i>ピボット</span>
+    <span><i style="background:var(--sorted)"></i>確定</span>
+  </div>
+
+  <div class="algos" id="algos"></div>
+
+  <div class="controls">
+    <div class="ctrl">
+      <label>要素数 <b id="nLabel">48</b></label>
+      <input type="range" id="nRange" min="8" max="160" value="48">
+    </div>
+    <div class="ctrl">
+      <label>速度 <b id="spdLabel">中</b></label>
+      <input type="range" id="spdRange" min="0" max="100" value="48">
+    </div>
+    <div class="buttons">
+      <button id="runBtn" class="primary">▶ 実行</button>
+      <button id="shuffleBtn">↻ シャッフル</button>
+      <button id="soundBtn" class="ghost" aria-pressed="false">♪ 音 オフ</button>
+    </div>
+  </div>
+
+  <div class="info" id="info"></div>
+  <footer class="foot">同じ配列のまま整列法を切り替えると、アルゴリズムごとの動きや手数を見比べられます。</footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- アルゴリズム定義 ----------
+  // 各関数は配列を受け取り、再生用の操作列(ops)を返す純粋関数。
+  // op の種類: cmp(比較) / swap(交換) / set(書き込み) / pivot(目印) / sorted(確定)
+  function build(arr){
+    const a = arr.slice(), ops = [];
+    return {
+      a, ops,
+      cmp(i,j){ ops.push({t:'cmp', i, j: (j===undefined?null:j)}); },
+      lt(i,j){ ops.push({t:'cmp', i, j}); return a[i] < a[j]; },
+      gt(i,j){ ops.push({t:'cmp', i, j}); return a[i] > a[j]; },
+      swap(i,j){ ops.push({t:'swap', i, j}); const t=a[i]; a[i]=a[j]; a[j]=t; },
+      set(i,v){ ops.push({t:'set', i, v}); a[i]=v; },
+      val(i){ return a[i]; },
+      pivot(i){ ops.push({t:'pivot', i}); },
+      unpivot(){ ops.push({t:'pivot', i:-1}); },
+      sorted(i){ ops.push({t:'sorted', i}); }
+    };
+  }
+
+  const ALGOS = {
+    bubble: {
+      name:'バブルソート',
+      desc:'隣り合う2要素を比べ、順序が逆なら交換する。大きい値が泡のように右端へ浮かんでいく。',
+      cx:{最良:'O(n)', 平均:'O(n²)', 最悪:'O(n²)', 空間:'O(1)', 安定:'安定'},
+      run(arr){ const r=build(arr), n=arr.length;
+        for(let i=0;i<n-1;i++){
+          for(let j=0;j<n-1-i;j++){ if(r.gt(j,j+1)) r.swap(j,j+1); }
+          r.sorted(n-1-i);
+        }
+        r.sorted(0); return r.ops;
+      }
+    },
+    selection: {
+      name:'選択ソート',
+      desc:'未整列部分から最小値を探し、その先頭と入れ替える。交換回数は少ないが比較は常に多い。',
+      cx:{最良:'O(n²)', 平均:'O(n²)', 最悪:'O(n²)', 空間:'O(1)', 安定:'非安定'},
+      run(arr){ const r=build(arr), n=arr.length;
+        for(let i=0;i<n-1;i++){
+          let m=i;
+          for(let j=i+1;j<n;j++){ if(r.lt(j,m)) m=j; }
+          if(m!==i) r.swap(i,m);
+          r.sorted(i);
+        }
+        r.sorted(n-1); return r.ops;
+      }
+    },
+    insertion: {
+      name:'挿入ソート',
+      desc:'トランプを手札に差し込む要領で、1要素ずつ整列済みの正しい位置へずらして挿入する。',
+      cx:{最良:'O(n)', 平均:'O(n²)', 最悪:'O(n²)', 空間:'O(1)', 安定:'安定'},
+      run(arr){ const r=build(arr), n=arr.length;
+        for(let i=1;i<n;i++){
+          const key=r.val(i); let j=i-1;
+          while(j>=0){ r.cmp(j, j+1); if(r.val(j)>key){ r.set(j+1, r.val(j)); j--; } else break; }
+          r.set(j+1, key);
+        }
+        return r.ops; // 確定は最後の確認スイープで表示
+      }
+    },
+    quick: {
+      name:'クイックソート',
+      desc:'ピボットを選び、それより小さい値を左へ集めて分割。各分割を再帰的に整列する（Lomuto 法）。',
+      cx:{最良:'O(n log n)', 平均:'O(n log n)', 最悪:'O(n²)', 空間:'O(log n)', 安定:'非安定'},
+      run(arr){ const r=build(arr), n=arr.length;
+        const qs=(lo,hi)=>{
+          if(lo>hi) return;
+          if(lo===hi){ r.sorted(lo); return; }
+          const p=hi; r.pivot(p); let i=lo;
+          for(let j=lo;j<hi;j++){ r.cmp(j,p); if(r.val(j)<r.val(p)){ r.swap(i,j); i++; } }
+          r.swap(i,hi); r.unpivot(); r.sorted(i);
+          qs(lo,i-1); qs(i+1,hi);
+        };
+        qs(0,n-1); return r.ops;
+      }
+    },
+    merge: {
+      name:'マージソート',
+      desc:'配列を半分ずつに分割し、整列済みの2列を併合(マージ)していく。手数が安定して速い分割統治法。',
+      cx:{最良:'O(n log n)', 平均:'O(n log n)', 最悪:'O(n log n)', 空間:'O(n)', 安定:'安定'},
+      run(arr){ const r=build(arr), n=arr.length;
+        const ms=(lo,hi)=>{
+          if(lo>=hi) return;
+          const mid=(lo+hi)>>1; ms(lo,mid); ms(mid+1,hi);
+          const L=[],R=[];
+          for(let x=lo;x<=mid;x++) L.push(r.val(x));
+          for(let x=mid+1;x<=hi;x++) R.push(r.val(x));
+          let i=0,j=0,k=lo;
+          while(i<L.length && j<R.length){
+            r.cmp(lo+i, mid+1+j);
+            if(L[i]<=R[j]){ r.set(k,L[i]); i++; } else { r.set(k,R[j]); j++; }
+            k++;
+          }
+          while(i<L.length){ r.set(k,L[i]); i++; k++; }
+          while(j<R.length){ r.set(k,R[j]); j++; k++; }
+        };
+        ms(0,n-1); return r.ops;
+      }
+    },
+    heap: {
+      name:'ヒープソート',
+      desc:'最大ヒープを構築し、根(最大値)を末尾へ取り出してはヒープを再構成する。追加メモリ不要。',
+      cx:{最良:'O(n log n)', 平均:'O(n log n)', 最悪:'O(n log n)', 空間:'O(1)', 安定:'非安定'},
+      run(arr){ const r=build(arr), n=arr.length;
+        const sift=(i,size)=>{
+          while(true){
+            let l=2*i+1, rr=2*i+2, big=i;
+            if(l<size){ r.cmp(l,big); if(r.val(l)>r.val(big)) big=l; }
+            if(rr<size){ r.cmp(rr,big); if(r.val(rr)>r.val(big)) big=rr; }
+            if(big===i) break;
+            r.swap(i,big); i=big;
+          }
+        };
+        for(let i=(n>>1)-1;i>=0;i--) sift(i,n);
+        for(let end=n-1;end>=1;end--){ r.swap(0,end); r.sorted(end); sift(0,end); }
+        r.sorted(0); return r.ops;
+      }
+    },
+    shell: {
+      name:'シェルソート',
+      desc:'間隔(ギャップ)を空けた挿入ソートを、間隔を半分ずつ縮めながら繰り返す。離れた要素を早めに整える。',
+      cx:{最良:'O(n log n)', 平均:'~O(n^1.25)', 最悪:'O(n²)', 空間:'O(1)', 安定:'非安定'},
+      run(arr){ const r=build(arr), n=arr.length;
+        for(let gap=n>>1; gap>=1; gap=Math.floor(gap/2)){
+          for(let i=gap;i<n;i++){
+            const temp=r.val(i); let j=i;
+            while(j>=gap){ r.cmp(j-gap, j); if(r.val(j-gap)>temp){ r.set(j, r.val(j-gap)); j-=gap; } else break; }
+            r.set(j, temp);
+          }
+        }
+        return r.ops;
+      }
+    }
+  };
+
+  // ---------- 状態 ----------
+  let N = 48;
+  let base = [];      // 整列対象（シャッフル済みのスナップショット）
+  let values = [];    // 再生中の表示配列
+  let ops = [];
+  let ptr = 0;
+  let comparisons = 0, writes = 0;
+  let sorted = new Set();
+  let pivotIndex = -1;
+  let hi = {cmp:[], write:[]};
+  let phase = 'idle'; // idle | running | sweeping | done
+  let playing = false;
+  let rafId = null, lastT = 0, budget = 0, sweepPos = 0;
+  let opsPerSec = 55;
+  let algo = 'bubble';
+  let soundOn = false, actx = null;
+
+  // ---------- DOM ----------
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const cmpEl = document.getElementById('cmpCount');
+  const wrtEl = document.getElementById('wrtCount');
+  const nRange = document.getElementById('nRange');
+  const nLabel = document.getElementById('nLabel');
+  const spdRange = document.getElementById('spdRange');
+  const spdLabel = document.getElementById('spdLabel');
+  const runBtn = document.getElementById('runBtn');
+  const shuffleBtn = document.getElementById('shuffleBtn');
+  const soundBtn = document.getElementById('soundBtn');
+  const algosEl = document.getElementById('algos');
+  const infoEl = document.getElementById('info');
+
+  const css = (v)=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const COL = {};
+  function loadColors(){
+    COL.trace=css('--trace'); COL.compare=css('--compare');
+    COL.write=css('--write'); COL.sorted=css('--sorted');
+    COL.pivot=css('--pivot'); COL.grid=css('--grid');
+  }
+
+  // ---------- 配列生成 ----------
+  function newArray(){
+    base = Array.from({length:N},(_,i)=>i+1);
+    for(let i=N-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [base[i],base[j]]=[base[j],base[i]]; }
+    resetPlayback();
+  }
+  function resetPlayback(){
+    stopLoop(); playing=false;
+    values = base.slice(); ops=[]; ptr=0; budget=0; sweepPos=0;
+    comparisons=0; writes=0; sorted=new Set(); pivotIndex=-1; hi={cmp:[],write:[]};
+    phase='idle';
+    updateStats(); updateRunBtn(); render();
+  }
+
+  // ---------- 再生 ----------
+  function applyOp(op){
+    hi = {cmp:[], write:[]};
+    switch(op.t){
+      case 'cmp': comparisons++; hi.cmp = op.j!=null ? [op.i,op.j] : [op.i]; break;
+      case 'swap': { const t=values[op.i]; values[op.i]=values[op.j]; values[op.j]=t; writes+=2; hi.write=[op.i,op.j]; break; }
+      case 'set': values[op.i]=op.v; writes++; hi.write=[op.i]; break;
+      case 'pivot': pivotIndex=op.i; break;
+      case 'sorted': sorted.add(op.i); break;
+    }
+  }
+
+  function frame(t){
+    if(!playing) return;
+    const dt = Math.min(0.05, (t-lastT)/1000); lastT=t;
+
+    if(phase==='running'){
+      budget += opsPerSec*dt;
+      let steps = Math.floor(budget);
+      if(steps>0) budget -= steps;
+      while(steps-- > 0 && ptr < ops.length) applyOp(ops[ptr++]);
+      if(ptr >= ops.length){ phase='sweeping'; pivotIndex=-1; hi={cmp:[],write:[]}; sweepPos=0; }
+      tone(); updateStats(); render();
+    } else if(phase==='sweeping'){
+      sweepPos += (N/0.5)*dt;            // 約0.5秒で左から右へ確定スイープ
+      const upto = Math.min(N, Math.floor(sweepPos));
+      for(let i=0;i<upto;i++) sorted.add(i);
+      hi = {cmp:[], write: upto>0 && upto<=N ? [upto-1] : []};
+      if(soundOn && upto>0 && upto<N) beep(values[upto-1], 0.03);
+      render();
+      if(upto>=N){ phase='done'; playing=false; stopLoop(); hi={cmp:[],write:[]}; render(); updateRunBtn(); }
+    }
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function startLoop(){ stopLoop(); lastT=performance.now(); rafId=requestAnimationFrame(frame); }
+  function stopLoop(){ if(rafId){ cancelAnimationFrame(rafId); rafId=null; } }
+
+  function onRun(){
+    if(playing){ playing=false; stopLoop(); updateRunBtn(); return; }
+    if(phase==='done') resetPlayback();
+    if(ops.length===0){ ops = ALGOS[algo].run(base); ptr=0; phase='running'; }
+    if(phase==='idle') phase = ptr<ops.length ? 'running' : 'sweeping';
+    playing=true; updateRunBtn(); startLoop();
+  }
+
+  // ---------- 描画 ----------
+  let W=0,H=0,dpr=1;
+  function resize(){
+    const rect = cv.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio||1, 2);
+    W = Math.max(1, Math.round(rect.width));
+    H = Math.max(1, Math.round(rect.height));
+    cv.width = W*dpr; cv.height = H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    render();
+  }
+  function colorFor(i){
+    if(sorted.has(i)) return COL.sorted;
+    if(i===pivotIndex) return COL.pivot;
+    if(hi.cmp.includes(i)) return COL.compare;
+    if(hi.write.includes(i)) return COL.write;
+    return COL.trace;
+  }
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    // グリッド線（オシロスコープ風）
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+    for(let g=1;g<5;g++){ const y=Math.round(H*g/5)+0.5; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+    const n = values.length; if(!n) return;
+    const pad = 6;
+    const usableW = W - pad*2, usableH = H - pad*2;
+    const slot = usableW / n;
+    const bw = Math.max(1, slot*0.8);
+    const off = (slot - bw)/2;
+    for(let i=0;i<n;i++){
+      const h = (values[i]/n) * usableH;
+      const x = pad + i*slot + off;
+      const y = pad + (usableH - h);
+      const c = colorFor(i);
+      const glow = (c===COL.compare||c===COL.write||c===COL.pivot);
+      if(glow){ ctx.shadowColor=c; ctx.shadowBlur=12; } else { ctx.shadowBlur=0; }
+      ctx.fillStyle = c;
+      ctx.fillRect(x, y, bw, h);
+      ctx.shadowBlur = 0;
+      // 上端のハイライト（蛍光体っぽさ）
+      if(bw>=2){ ctx.fillStyle='rgba(255,255,255,.22)'; ctx.fillRect(x, y, bw, Math.min(2,h)); }
+    }
+  }
+
+  function updateStats(){ cmpEl.textContent = comparisons.toLocaleString(); wrtEl.textContent = writes.toLocaleString(); }
+  function updateRunBtn(){
+    if(playing){ runBtn.textContent='⏸ 一時停止'; }
+    else if(phase==='done'){ runBtn.textContent='▶ もう一度'; }
+    else if(ptr>0 && ptr<ops.length){ runBtn.textContent='▶ 再開'; }
+    else { runBtn.textContent='▶ 実行'; }
+  }
+
+  // ---------- 音（任意） ----------
+  function ensureAudio(){ if(!actx){ try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ actx=null; } } }
+  function beep(value, dur){
+    if(!actx) return;
+    const freq = 140 + (value/Math.max(1,N))*820;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type='triangle'; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.0001, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.06, actx.currentTime+0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime+dur+0.02);
+  }
+  function tone(){
+    if(!soundOn) return;
+    const idx = hi.write[0] ?? hi.cmp[0];
+    if(idx!=null && values[idx]!=null) beep(values[idx], 0.04);
+  }
+
+  // ---------- UI 構築 ----------
+  function buildChips(){
+    Object.keys(ALGOS).forEach(key=>{
+      const b=document.createElement('button');
+      b.className='chip'; b.textContent=ALGOS[key].name;
+      b.setAttribute('aria-pressed', key===algo ? 'true':'false');
+      b.addEventListener('click',()=>{
+        algo=key;
+        [...algosEl.children].forEach(c=>c.setAttribute('aria-pressed','false'));
+        b.setAttribute('aria-pressed','true');
+        showInfo(); resetPlayback();   // 同じ配列のまま整列法だけ切替
+      });
+      algosEl.appendChild(b);
+    });
+  }
+  function showInfo(){
+    const a=ALGOS[algo];
+    const cx=Object.entries(a.cx).map(([k,v])=>`${k} <b>${v}</b>`).join(' · ');
+    infoEl.innerHTML = `<span class="name">${a.name}</span>${a.desc}<div class="cx">${cx}</div>`;
+  }
+  function setFill(el){ const min=+el.min,max=+el.max,v=+el.value; el.style.setProperty('--fill',((v-min)/(max-min)*100)+'%'); }
+  function speedLabel(v){ return v<20?'最遅':v<40?'遅':v<60?'中':v<80?'速':'最速'; }
+
+  nRange.addEventListener('input',()=>{ N=+nRange.value; nLabel.textContent=N; setFill(nRange); newArray(); });
+  spdRange.addEventListener('input',()=>{
+    const v=+spdRange.value; spdLabel.textContent=speedLabel(v); setFill(spdRange);
+    opsPerSec = Math.round(2 * Math.pow(2000, v/100));   // 2 〜 4000 ops/s（対数）
+  });
+  runBtn.addEventListener('click', onRun);
+  shuffleBtn.addEventListener('click', ()=>{ newArray(); });
+  soundBtn.addEventListener('click', ()=>{
+    soundOn=!soundOn; ensureAudio();
+    if(actx && actx.state==='suspended') actx.resume();
+    soundBtn.setAttribute('aria-pressed', soundOn?'true':'false');
+    soundBtn.textContent = soundOn ? '♪ 音 オン' : '♪ 音 オフ';
+  });
+
+  window.addEventListener('resize', resize);
+  if(window.ResizeObserver){ new ResizeObserver(resize).observe(cv); }
+
+  // ---------- 初期化 ----------
+  function init(){
+    loadColors();
+    buildChips(); showInfo();
+    setFill(nRange); setFill(spdRange);
+    spdLabel.textContent = speedLabel(+spdRange.value);
+    opsPerSec = Math.round(2 * Math.pow(2000, (+spdRange.value)/100));
+    newArray();
+    requestAnimationFrame(resize);
+  }
+  init();
+})();
+</script>
+</body>
+</html>
