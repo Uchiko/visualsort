@@ -600,7 +600,7 @@
     soundOn=!soundOn; ensureAudio();
     if(actx && actx.state==='suspended') actx.resume();
     soundBtn.setAttribute('aria-pressed', soundOn?'true':'false');
-    soundBtn.textContent = soundOn ? '♪ 音 オン' : '♪ 音 オフ';
+    soundBtn.textContent = soundOn ? '♪ 音をオフにする' : '♪ 音をオンにする';
   });
 
   window.addEventListener('resize', resize);
